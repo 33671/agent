@@ -12,7 +12,7 @@ You have access to tmux-based tools for managing multiple parallel processes wit
 Creates a new window in the `agent_session` with one pane.
 - **Parameters**:
   - `window_name` (optional): Name the window for easy reference (e.g., "worker", "backend", "scraping")
-  - `command` (optional): Initial command to run. If omitted, starts the default shell
+  - `command` (optional): Initial command to run, must be a long-running command otherwise the window will exit immediately. If omitted, starts the bash shell
   - `start_directory` (optional): Working directory for the new window
 
 **Example**:

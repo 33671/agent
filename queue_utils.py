@@ -8,6 +8,8 @@ class MessageType(Enum):
     COMMAND = "command"
     PRINT = "print"
     USER_INTERRUPT = "user_interrupt"
+    TELEGRAM = "telegram"
+    TELEGRAM_RESPONSE = "telegram_response"
 
 @dataclass
 class Message:
@@ -25,3 +27,14 @@ def command_message(cmd: str) -> Message:
 
 def print_message(text: str, **kwargs) -> Message:
     return Message(MessageType.PRINT, (text, kwargs))
+
+
+def telegram_message(content: str) -> Message:
+    return Message(MessageType.TELEGRAM, content)
+
+
+def telegram_response_message(content: str, response_type: str = "text") -> Message:
+    """
+    response_type: "text", "tool_start", "tool_result", "final"
+    """
+    return Message(MessageType.TELEGRAM_RESPONSE, {"type": response_type, "content": content})

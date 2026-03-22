@@ -19,7 +19,6 @@ async def user_input_producer(main_queue: asyncio.Queue, print_queue: asyncio.Qu
     turn_count = 1
     while True:
         try:
-            sys.stdout.flush()  # 确保提示符立即显示
             user_input = await session.prompt_async(
                 f"\nUser [Turn {turn_count}]: ",
                 completer=completer,
@@ -53,11 +52,11 @@ async def user_input_producer(main_queue: asyncio.Queue, print_queue: asyncio.Qu
 
 
 async def terminal_output_producer(main_queue: asyncio.Queue, print_queue: asyncio.Queue):
-    """。
+    """
     每读取一行，向 main_queue 发送 terminal_message(line)
     """
     # 示例：模拟输出（实际使用时删除）
-    await print_queue.put(print_message("terminal source listening"))
+    # await print_queue.put(print_message("terminal source listening"))
     try:
         while True:
             await asyncio.sleep(1)  # TODO
