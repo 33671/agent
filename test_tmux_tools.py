@@ -22,7 +22,6 @@ from tmux_tools import (
     tmux_del,
     tmux_list,
     tmux_new,
-    tmux_read,
     tmux_read_last,
     tmux_send_signal,
     tmux_wait,
@@ -282,43 +281,6 @@ class TestReadLast:
         # Read more lines than exist
         result = await tmux_read_last(window_name, 100)
         assert "[lines" in result  # Check for line range header
-
-
-class TestRead:
-    """Tests for tmux_read function."""
-
-    @pytest.mark.asyncio
-    async def test_tmux_read_nonexistent_window(self):
-        """Test reading from non-existent window."""
-        result = await tmux_read("nonexistent_window_12345", 1, 10)
-        assert "Error:" in result
-        assert "does not exist" in result
-
-    @pytest.mark.asyncio
-    async def test_tmux_read(self, fresh_agent_session):
-        """Test reading N lines from a specific offset."""
-        window_name = fresh_agent_session
-
-        # Send multiple commands to create output
-        for i in range(5):
-            await tmux_write(window_name, f"echo line_{i}")
-            await asyncio.sleep(0.2)
-
-        # Read from line 1, 3 lines
-        result = await tmux_read(window_name, 1, 3)
-        assert "[lines 1-" in result  # Check for line range header starting at line 1
-        # Should contain at least first few lines
-        assert "line_0" in result or "line_1" in result
-
-    @pytest.mark.asyncio
-    async def test_tmux_read_offset_exceeds_total(self, fresh_agent_session):
-        """Test reading from offset that exceeds total lines."""
-        window_name = fresh_agent_session
-
-        # Read from a very high offset beyond total
-        result = await tmux_read(window_name, 9999, 10)
-        # Should return empty content with line range header
-        assert "[lines 9999-9999]" in result
 
 
 class TestTmuxWrite:

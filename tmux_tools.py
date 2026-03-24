@@ -220,37 +220,12 @@ async def tmux_read_last(target_window: str, n_lines: int) -> str:
     await _feed_new_data(target_window)
     screen, _, _ = _window_screens[target_window]
 
-    lines = screen.display
+    # Clean the right-side padding from every line
+    lines = [line.rstrip() for line in screen.display]
+    
     selected = lines[-n_lines:] if n_lines > 0 else lines
-    content = "\n".join(selected)
-
-    if max_chars > 0 and len(content) > max_chars:
-        content = _truncate_content(content, max_chars)
-    return content
-
-
-async def tmux_read(target_window: str, line_offset: int, n_lines: int) -> str:
-    """
-    Read N screen lines starting from a given offset (1‑based).
-    Returns the visible screen content, not raw log lines.
-    """
-    max_chars: int = 16000
-    if not await _window_exists(target_window):
-        return f"Error: Window '{target_window}' does not exist"
-
-    await _ensure_screen(target_window)
-    await _feed_new_data(target_window)
-    screen, _, _ = _window_screens[target_window]
-
-    lines = screen.display
-    total_lines = len(lines)
-    if line_offset > total_lines:
-        return ""
-
-    start = max(0, line_offset - 1)
-    end = min(start + n_lines, total_lines)
-    selected = lines[start:end]
-    content = "\n".join(selected)
+    # Join and strip any trailing empty newlines at the bottom of the screen
+    content = "\n".join(selected).rstrip()
 
     if max_chars > 0 and len(content) > max_chars:
         content = _truncate_content(content, max_chars)
@@ -269,8 +244,11 @@ async def tmux_write(target_window: str, input: str, wait_secs: float = 1.0) -> 
     await _feed_new_data(target_window)
     _, _, pos_before = _window_screens[target_window]
 
-    # 2. Send the input
-    parts = input.split("\\n")
+    # 2. Normalize newlines (handle both literal string "\n" and actual newlines)
+    normalized_input = input.replace("\\n", "\n")
+    parts = normalized_input.split("\n")
+
+    # 3. Send the input cleanly, line by line
     for i, part in enumerate(parts):
         if part:
             if re.match(r"^[MC]-.$", part) or part in ["Enter", "Escape", "Tab", "Space"]:
@@ -278,17 +256,23 @@ async def tmux_write(target_window: str, input: str, wait_secs: float = 1.0) -> 
             else:
                 await _tmux("send-keys", "-t", pane_target, "-l", part)
 
-        if i < len(parts) - 1 or (parts and not re.match(r"^[MC]-.$", parts[-1])):
+        # Send Enter logic:
+        # If not the last part, press Enter and wait slightly for the shell prompt (>) to catch up
+        if i < len(parts) - 1:
+            await _tmux("send-keys", "-t", pane_target, "Enter")
+            await asyncio.sleep(0.05) 
+        # If it IS the last part, press Enter UNLESS it's a control sequence
+        elif part and not (re.match(r"^[MC]-.$", part) or part in ["Enter", "Escape", "Tab", "Space"]):
             await _tmux("send-keys", "-t", pane_target, "Enter")
 
-    # 3. Wait for the specified duration
+    # 4. Wait for the specified duration for the command to execute
     await asyncio.sleep(wait_secs)
 
-    # 4. Catch up the main screen and get the new byte position AFTER waiting
+    # 5. Catch up the main screen and get the new byte position AFTER waiting
     await _feed_new_data(target_window)
     _, _, pos_after = _window_screens[target_window]
 
-    # 5. Extract only the newly generated raw bytes from the log
+    # 6. Extract only the newly generated raw bytes from the log
     log_file = _get_log_file(target_window)
     new_bytes = b""
     if os.path.exists(log_file) and pos_after > pos_before:
@@ -299,20 +283,23 @@ async def tmux_write(target_window: str, input: str, wait_secs: float = 1.0) -> 
         except Exception as e:
             return f"Input sent, but failed to read new output: {e}"
 
-    # 6. Parse the new bytes through a dynamically tall temporary screen to strip ANSI
+    # 7. Parse the new bytes through a dynamically tall temporary screen to strip ANSI
     output = ""
     if new_bytes:
         width, _ = await _get_pane_size(target_window)
-        # Estimate needed lines to prevent truncation (minimum 100)
+        # Estimate needed lines to prevent truncation
         estimated_lines = max(100, new_bytes.count(b'\n') + 50)
         
         temp_screen = pyte.Screen(width, estimated_lines)
         temp_stream = pyte.ByteStream(temp_screen)
         temp_stream.feed(new_bytes)
 
-        # Extract display and clean up trailing/leading whitespace
-        display_lines = temp_screen.display
-        output = "\n".join(display_lines).strip()
+        # Extract display, right-strip trailing spaces PER LINE, and remove empty trailing lines
+        cleaned_lines = [line.rstrip() for line in temp_screen.display]
+        while cleaned_lines and not cleaned_lines[-1]:
+            cleaned_lines.pop()
+            
+        output = "\n".join(cleaned_lines).strip()
 
     max_chars = 16000
     if output:
@@ -423,7 +410,6 @@ async def tmux_send_signal(target_window: str, signal: str) -> str:
 TMUX_TOOLS = {
     "tmux_new": tmux_new,
     "tmux_read_last": tmux_read_last,
-    "tmux_read": tmux_read,
     "tmux_write": tmux_write,
     "tmux_del": tmux_del,
     "tmux_list": tmux_list,

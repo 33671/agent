@@ -8,13 +8,13 @@ TMUX_TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "tmux_new",
-            "description": "Create a new tmux window in the agent session with one pane. If agent_session doesn't exist, it will be created automatically. Each window can only have one pane.",
+            "description": "Create a new tmux window in the agent_session with one pane. If the session doesn't exist, it is created automatically. The window's output is automatically captured to a log file for reading. Each window has exactly one pane.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "window_name": {
                         "type": "string",
-                        "description": "Name of the window. If omitted, a tmux-generated name is used.",
+                        "description": "Name for the window (e.g., 'worker', 'backend'). If omitted, tmux assigns a numeric name.",
                     },
                     "start_directory": {
                         "type": "string",
@@ -22,7 +22,7 @@ TMUX_TOOLS_SCHEMA = [
                     },
                     "command": {
                         "type": "string",
-                        "description": "Initial command to run in the window (e.g., 'bash', 'python'). If omitted, the default shell is started.",
+                        "description": "Initial command to run in the window (e.g., 'python app.py'). If omitted, a bash shell is started.",
                     },
                 },
                 "required": [],
@@ -33,7 +33,7 @@ TMUX_TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "tmux_read_last",
-            "description": "Read the last N lines from a tmux window. Returns content string with line range header like '[lines X-Y]\\ncontent'. Each window has exactly one pane.",
+            "description": "Read the last N lines from a window's output. ANSI escape codes are stripped, and lines are right-trimmed. Returns the content as a plain string.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -43,7 +43,7 @@ TMUX_TOOLS_SCHEMA = [
                     },
                     "n_lines": {
                         "type": "integer",
-                        "description": "Number of lines to read from the end.",
+                        "description": "Number of lines to read from the end. Use 0 to read the entire screen.",
                     },
                 },
                 "required": ["target_window", "n_lines"],
@@ -53,33 +53,8 @@ TMUX_TOOLS_SCHEMA = [
     {
         "type": "function",
         "function": {
-            "name": "tmux_read",
-            "description": "Read N lines from a starting line offset in a tmux window. Line numbers are 1-indexed. Returns content string with line range header like '[lines X-Y]\\ncontent'. Each window has exactly one pane.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "target_window": {
-                        "type": "string",
-                        "description": "Window name (e.g., 'worker', 'main', 'backend').",
-                    },
-                    "line_offset": {
-                        "type": "integer",
-                        "description": "Line number to start reading from (1-indexed).",
-                    },
-                    "n_lines": {
-                        "type": "integer",
-                        "description": "Number of lines to read.",
-                    },
-                },
-                "required": ["target_window", "line_offset", "n_lines"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "tmux_write",
-            "description": "Send input (keys) to a window and return the subsequent output after waiting. Each window has exactly one pane.",
+            "description": "Send input (keys) to a window and return the new output generated after waiting. The output is cleaned of ANSI codes. Each window has exactly one pane.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -110,7 +85,7 @@ TMUX_TOOLS_SCHEMA = [
                 "properties": {
                     "target_window": {
                         "type": "string",
-                        "description": "Window name to kill (e.g., 'worker', 'main').",
+                        "description": "Window name to kill.",
                     },
                 },
                 "required": ["target_window"],
@@ -133,17 +108,17 @@ TMUX_TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "tmux_wait",
-            "description": "Wait for a substring to appear in a window's output, with a timeout. Only matches unread content.",
+            "description": "Wait for a substring to appear in a window.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "target_window": {
                         "type": "string",
-                        "description": "Window name (e.g., 'worker', 'main').",
+                        "description": "Window name.",
                     },
                     "text": {
                         "type": "string",
-                        "description": "Substring to search for in unread output.",
+                        "description": "Substring to search for in the comming content.",
                     },
                     "timeout": {
                         "type": "number",
@@ -158,13 +133,13 @@ TMUX_TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "tmux_send_signal",
-            "description": "Send a signal to the foreground process in a window.",
+            "description": "Send a signal to the foreground process in a window. Common signals (SIGINT, SIGTERM, SIGQUIT, SIGSTOP, SIGTSTP) are mapped to tmux key sequences; others are sent via kill.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "target_window": {
                         "type": "string",
-                        "description": "Window name (e.g., 'worker', 'main').",
+                        "description": "Window name.",
                     },
                     "signal": {
                         "type": "string",

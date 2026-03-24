@@ -8,7 +8,7 @@ from openai import OpenAI
 from prompt_toolkit import print_formatted_text
 from prompt_toolkit.formatted_text import HTML
 
-from queue_utils import Message, MessageType, print_message, telegram_message, telegram_response_message
+from queue_utils import Message, MessageType, clear_queue, print_message, telegram_message, telegram_response_message
 from bot_producer import set_telegram_batch_active
 from tools import TOOLS, AVAILABLE_TOOLS
 from utils import strip_past_turn_reasoning_context
@@ -151,9 +151,9 @@ async def process_user_message(user_content: str, messages: List[Dict],
 
     step_count = 0
     while True:
-        step_count += 1
         if asyncio.current_task().cancelled():
             break
+        step_count += 1
         await print_queue.put(print_message(f"\n[Step {step_count}] Sending request to model..."))
         current_messages = strip_past_turn_reasoning_context(messages, is_preserved_thinking)
         response = await call_model(current_messages, TOOLS, "auto")
@@ -213,11 +213,12 @@ async def model_consumer(main_queue: asyncio.Queue, print_queue: asyncio.Queue, 
     running = True
 
     while running:
-        msg_task = asyncio.create_task(main_queue.get())
-        user_interrupt_get = asyncio.create_task(user_interrupt_queue.get())
-        await asyncio.wait([msg_task, user_interrupt_get], return_when=asyncio.FIRST_COMPLETED)
-        process_user_message_task:asyncio.Task= None
-        msg = await msg_task
+        # msg_task = asyncio.create_task(main_queue.get())
+        # user_interrupt_get = asyncio.create_task(user_interrupt_queue.get())
+        # await asyncio.wait([msg_task, user_interrupt_get], return_when=asyncio.FIRST_COMPLETED)
+        # process_user_message_task:asyncio.Task= None
+        msg = await main_queue.get()
+        clear_queue(user_interrupt_queue)
         if msg.type == MessageType.COMMAND:
             cmd = msg.data
             if cmd == "exit":
