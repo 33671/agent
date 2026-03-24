@@ -160,11 +160,12 @@ async def tmux_new(
             create_args += ["-n", window_name]
         if start_directory:
             create_args += ["-c", start_directory]
+        create_args += ["-x","250","-y","1000"]
         if command:
             create_args += ["--"] + shlex.split(command)
         else:
             create_args += ["--"] + shlex.split("bash")
-
+        
         result = await _tmux(*create_args)
         if result.returncode != 0:
             return f"Error: Failed to create tmux session: {result.stderr}"
@@ -223,8 +224,15 @@ async def tmux_read_last(target_window: str, n_lines: int) -> str:
     # Clean the right-side padding from every line
     lines = [line.rstrip() for line in screen.display]
     
+    # --- FIX: Strip trailing empty lines from the bottom of the terminal ---
+    # This prevents n_lines from grabbing completely blank lines 
+    # if the text hasn't scrolled all the way down to the bottom.
+    while lines and not lines[-1]:
+        lines.pop()
+    
     selected = lines[-n_lines:] if n_lines > 0 else lines
-    # Join and strip any trailing empty newlines at the bottom of the screen
+    
+    # Join and strip any trailing empty newlines
     content = "\n".join(selected).rstrip()
 
     if max_chars > 0 and len(content) > max_chars:
@@ -336,6 +344,12 @@ async def tmux_del(target_window: str) -> str:
 
     return f"Killed window: {target_window}"
 
+# async def tmux_del(target_window: str) -> str:
+#     """Kill a window in agent_session and clean up its pipe-pane log."""
+#     if not await _window_exists(target_window):
+#         return f"Error: Window '{target_window}' does not exist"
+
+#     return f"We are in debug mode, so window: {target_window} is not real killed"
 
 async def tmux_list() -> str:
     """List all windows in agent_session."""

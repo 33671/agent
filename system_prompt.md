@@ -145,6 +145,7 @@ tmux_read_last(target_window="worker", n_lines=10)
 
 7. **Multi‑process workflows**: Create multiple windows for parallel tasks and monitor each separately.
 
+8. **Heredoc**: use file tools instead of using cat to create file. when must needed, use a quoted heredoc (`<< 'EOF'`) to avoid accidental variable expansion and escaping issues.
 ---
 
 ### Common Patterns

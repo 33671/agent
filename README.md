@@ -8,6 +8,7 @@ a very simple agent
 - File Operations: create, read, and edit files
 - Vison Support: can see image files
 - Interactive Sessions: interact with long-running processes like REPLs and CLIs
+- Bot support: chat as a telegram bot
 
 ## Use Cases
 
