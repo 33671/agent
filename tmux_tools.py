@@ -254,50 +254,79 @@ async def tmux_write(target_window: str, input: str, wait_secs: float = 1.0) -> 
 
     # 2. Normalize newlines (handle both literal string "\n" and actual newlines)
     normalized_input = input.replace("\\n", "\n")
-    parts = normalized_input.split("\n")
 
-    # 3. Send the input cleanly, line by line
-    for i, part in enumerate(parts):
-        if part:
-            if re.match(r"^[MC]-.$", part) or part in ["Enter", "Escape", "Tab", "Space"]:
-                await _tmux("send-keys", "-t", pane_target, part)
-            else:
-                await _tmux("send-keys", "-t", pane_target, "-l", part)
+    # 3. Split into lines, keeping empty lines
+    lines = normalized_input.split("\n")
 
-        # Send Enter logic:
-        # If not the last part, press Enter and wait slightly for the shell prompt (>) to catch up
-        if i < len(parts) - 1:
+    # 4. Define pattern for special keys (control keys and named keys)
+    special_key_pattern = re.compile(
+        r'(C-[a-zA-Z\\]|M-[a-zA-Z\\]|Enter|Escape|Tab|Space)$'
+    )
+
+    # 5. Send each line
+    for i, line in enumerate(lines):
+        ended_with_special = False
+
+        if line == "":
+            # Empty line: only send Enter if it's not the last line
+            if i < len(lines) - 1:
+                await _tmux("send-keys", "-t", pane_target, "Enter")
+                await asyncio.sleep(0.05)
+            # No content to send
+            continue
+
+        # Check if the line ends with a special key
+        match = special_key_pattern.search(line)
+        if match:
+            # Split into literal part and special key
+            literal_part = line[:match.start()]
+            special_part = match.group()
+            ended_with_special = True
+
+            # Send literal part if any
+            if literal_part:
+                await _tmux("send-keys", "-t", pane_target, "-l", literal_part)
+            # Send the special key
+            await _tmux("send-keys", "-t", pane_target, special_part)
+        else:
+            # Whole line is literal
+            await _tmux("send-keys", "-t", pane_target, "-l", line)
+
+        # After sending the line's content, handle Enter
+        if i < len(lines) - 1:
+            # Not the last line: always send Enter
             await _tmux("send-keys", "-t", pane_target, "Enter")
-            await asyncio.sleep(0.05) 
-        # If it IS the last part, press Enter UNLESS it's a control sequence
-        elif part and not (re.match(r"^[MC]-.$", part) or part in ["Enter", "Escape", "Tab", "Space"]):
-            await _tmux("send-keys", "-t", pane_target, "Enter")
+            await asyncio.sleep(0.05)
+        else:
+            # Last line: send Enter only if the line did NOT end with a special key
+            if not ended_with_special:
+                await _tmux("send-keys", "-t", pane_target, "Enter")
 
-    # 4. Wait for the specified duration for the command to execute
+    # 6. Wait for the specified duration for the command to execute
     await asyncio.sleep(wait_secs)
 
-    # 5. Catch up the main screen and get the new byte position AFTER waiting
+    # 7. Catch up the main screen and get the new byte position AFTER waiting
     await _feed_new_data(target_window)
     _, _, pos_after = _window_screens[target_window]
 
-    # 6. Extract only the newly generated raw bytes from the log
+    # 8. Extract only the newly generated raw bytes from the log
     log_file = _get_log_file(target_window)
     new_bytes = b""
     if os.path.exists(log_file) and pos_after > pos_before:
         try:
-            with open(log_file, 'rb',encoding="utf-8") as f:
+            with open(log_file, 'rb') as f:
                 f.seek(pos_before)
                 new_bytes = f.read(pos_after - pos_before)
         except Exception as e:
             return f"Input sent, but failed to read new output: {e}"
 
-    # 7. Parse the new bytes through a dynamically tall temporary screen to strip ANSI
+    # 9. Parse the new bytes through a dynamically tall temporary screen to strip ANSI
     output = ""
     if new_bytes:
         width, _ = await _get_pane_size(target_window)
         # Estimate needed lines to prevent truncation
         estimated_lines = max(100, new_bytes.count(b'\n') + 50)
-        
+
         temp_screen = pyte.Screen(width, estimated_lines)
         temp_stream = pyte.ByteStream(temp_screen)
         temp_stream.feed(new_bytes)
@@ -306,7 +335,7 @@ async def tmux_write(target_window: str, input: str, wait_secs: float = 1.0) -> 
         cleaned_lines = [line.rstrip() for line in temp_screen.display]
         while cleaned_lines and not cleaned_lines[-1]:
             cleaned_lines.pop()
-            
+
         output = "\n".join(cleaned_lines).strip()
 
     max_chars = 16000
