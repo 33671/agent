@@ -12,3 +12,4 @@ wheels/
 .env
 agent_session*
 tg_media/
+memory/*

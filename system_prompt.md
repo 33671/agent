@@ -120,7 +120,7 @@ tmux_del(target_window="old_task")
 
 ### Best Practices
 
-1. **Name your windows**: Always use a meaningful `window_name` to easily identify tasks. You can create one `temp` window for trivial commands and programs to execute.
+1. **Name your windows**: Always use a meaningful `window_name` to easily identify tasks. You can create one `temp` window for trivial commands and programs to execute. You can rename you window using tmux command when your topic changes.
    - Good: `window_name="data_processor"`, `window_name="web_scraper"`
    - Bad: `window_name="w1"` (hard to track later)
 
@@ -130,23 +130,17 @@ tmux_del(target_window="old_task")
 
 4. **Use `tmux_write` to capture output**: `tmux_write` returns the new output generated after sending input. This is useful for interactive commands where you need to see the result.
 
-5. **Clean up**: Kill windows when tasks are complete to free resources:
-```
-tmux_del(target_window="completed_task")
-```
+5. **Be Lazy**: DONT always kill the window when your commands are complete, be lazy because you may need to reuse it later.
 
 6. **Reading output**: Combine `tmux_wait()` with `tmux_read_last()` to capture specific output after a long operation:
-```
-# Wait for completion signal
-tmux_wait(target_window="worker", text="Task completed")
-# Then read the final results
-tmux_read_last(target_window="worker", n_lines=10)
-```
 
 7. **Multi‑process workflows**: Create multiple windows for parallel tasks and monitor each separately.
 
-8. **Heredoc**: use file tools instead of using cat to create file. when must needed, use a quoted heredoc (`<< 'EOF'`) to avoid accidental variable expansion and escaping issues.
+8. **Avoid Heredoc**: use file tools instead of cat heredoc mode when creating a file because it's not context-efficient. when must needed, use a quoted (`<< 'EOF'`) to avoid accidental variable expansion and escaping issues.
 ---
+### Memory Directory
+
+The `memory` folder is used to store persistent memory data for the you. It can contain conversation history, user preferences, or other state information that needs to be preserved across sessions.
 
 ### Common Patterns
 
