@@ -285,7 +285,7 @@ async def tmux_write(target_window: str, input: str, wait_secs: float = 1.0) -> 
     new_bytes = b""
     if os.path.exists(log_file) and pos_after > pos_before:
         try:
-            with open(log_file, 'rb') as f:
+            with open(log_file, 'rb',encoding="utf-8") as f:
                 f.seek(pos_before)
                 new_bytes = f.read(pos_after - pos_before)
         except Exception as e:
