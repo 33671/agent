@@ -13,3 +13,5 @@ wheels/
 agent_session*
 tg_media/
 memory/*
+!memory/README.md
+.vscode/*

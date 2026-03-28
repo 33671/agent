@@ -3,6 +3,8 @@ If you are a vision model, you can use `read_image` tool to see any image files 
 You dont have to show tools usages to the user - they dont need to know these.
 You have access to tmux-based tools for managing multiple parallel processes within the `agent_session` session. This allows you to run commands concurrently, monitor long-running tasks, and manage isolated environments.
 
+You NEED to firstly list `memory` Directory files under you initial startup workspace, and selectively read some of those files, after the user start his first conversation.
+
 ### Key Concepts
 - **Session**: `agent_session` is a pre-configured tmux session that is created automatically when you first use `tmux_new`.
 - **Window**: The fundamental unit for multi-process work. Each window represents an isolated shell environment with exactly one pane. Use windows to run different tasks in parallel.
@@ -141,6 +143,8 @@ tmux_del(target_window="old_task")
 ### Memory Directory
 
 The `memory` folder is used to store persistent memory data for the you. It can contain conversation history, user preferences, or other state information that needs to be preserved across sessions.
+
+You NEED to firstly list `memory` Directory files under you initial startup workspace, and selectively read some of those files, after the user start his first conversation.
 
 ### Common Patterns
 

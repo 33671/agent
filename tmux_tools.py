@@ -25,6 +25,7 @@ _window_screens: dict[str, tuple[pyte.Screen, pyte.ByteStream, int]] = {}
 
 class _CmdResult:
     """Helper class to mimic subprocess.CompletedProcess for async execution."""
+
     def __init__(self, returncode: int, stdout: str, stderr: str):
         self.returncode = returncode
         self.stdout = stdout
@@ -36,15 +37,13 @@ async def _tmux(*args: str, capture_output=True) -> _CmdResult:
     cmd = ["tmux"] + list(args)
     if capture_output:
         proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await proc.communicate()
         return _CmdResult(
             proc.returncode,
-            stdout.decode(errors='replace') if stdout else "",
-            stderr.decode(errors='replace') if stderr else ""
+            stdout.decode(errors="replace") if stdout else "",
+            stderr.decode(errors="replace") if stderr else "",
         )
     else:
         proc = await asyncio.create_subprocess_exec(*cmd)
@@ -74,7 +73,7 @@ def _get_pane_target(window_name: str) -> str:
 
 def _get_log_file(window_name: str) -> str:
     """Return the log file path for a given window."""
-    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', window_name)
+    safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", window_name)
     return os.path.join("./", f"agent_session_{safe_name}.log")
 
 
@@ -93,7 +92,9 @@ def _truncate_content(content: str, max_chars: int) -> str:
 async def _get_pane_size(window_name: str) -> tuple[int, int]:
     """Return (width, height) of the pane for the given window."""
     pane_target = _get_pane_target(window_name)
-    result = await _tmux("display", "-t", pane_target, "-p", "#{pane_width} #{pane_height}")
+    result = await _tmux(
+        "display", "-t", pane_target, "-p", "#{pane_width} #{pane_height}"
+    )
     if result.returncode != 0:
         return (1000, 24)  # fallback
     parts = result.stdout.strip().split()
@@ -136,7 +137,7 @@ async def _feed_new_data(window_name: str):
     if not os.path.exists(log_file):
         return
     try:
-        with open(log_file, 'rb') as f:
+        with open(log_file, "rb") as f:
             f.seek(last_pos)
             new_bytes = f.read()
             if new_bytes:
@@ -160,12 +161,14 @@ async def tmux_new(
             create_args += ["-n", window_name]
         if start_directory:
             create_args += ["-c", start_directory]
-        create_args += ["-x","1000","-y","1000"]
+        else:
+            create_args += ["-c", os.getcwd()]
+        create_args += ["-x", "1000", "-y", "1000"]
         if command:
             create_args += ["--"] + shlex.split(command)
         else:
             create_args += ["--"] + ["bash"]
-        
+
         result = await _tmux(*create_args)
         if result.returncode != 0:
             return f"Error: Failed to create tmux session: {result.stderr}"
@@ -178,14 +181,16 @@ async def tmux_new(
                 return f"Error: Window '{window_name}' already exists"
             args += ["-n", window_name]
         else:
-            args += ["-F", "#{window_name}"]   # Request output of new window name
+            args += ["-F", "#{window_name}"]  # Request output of new window name
         if start_directory:
             args += ["-c", start_directory]
+        else:
+            args += ["-c", os.getcwd()]
         if command:
             args += ["--"] + shlex.split(command)
         else:
             args += ["--"] + ["bash"]
-            
+
         result = await _tmux(*args)
         if result.returncode != 0:
             return f"Error: Failed to create tmux window: {result.stderr}"
@@ -195,8 +200,12 @@ async def tmux_new(
         else:
             actual_window = result.stdout.strip()
             if not actual_window:
-                cur_result = await _tmux("display-message", "-t", AGENT_SESSION, "-p", "#{window_name}")
-                actual_window = cur_result.stdout.strip() if cur_result.returncode == 0 else "0"
+                cur_result = await _tmux(
+                    "display-message", "-t", AGENT_SESSION, "-p", "#{window_name}"
+                )
+                actual_window = (
+                    cur_result.stdout.strip() if cur_result.returncode == 0 else "0"
+                )
 
     # Set up pipe-pane to capture stdout+stderr into a log file
     pane_target = _get_pane_target(actual_window)
@@ -207,8 +216,10 @@ async def tmux_new(
 
     pipe_result = await _tmux("pipe-pane", "-t", pane_target, f"cat >> {log_file}")
     if pipe_result.returncode != 0:
-        return (f"Created window: {pane_target} but pipe-pane failed: {pipe_result.stderr}. "
-                f"Reading functions will not work.")
+        return (
+            f"Created window: {pane_target} but pipe-pane failed: {pipe_result.stderr}. "
+            f"Reading functions will not work."
+        )
 
     return f"Created window: {pane_target}"
 
@@ -225,15 +236,15 @@ async def tmux_read_last(target_window: str, n_lines: int) -> str:
 
     # Clean the right-side padding from every line
     lines = [line.rstrip() for line in screen.display]
-    
+
     # --- FIX: Strip trailing empty lines from the bottom of the terminal ---
-    # This prevents n_lines from grabbing completely blank lines 
+    # This prevents n_lines from grabbing completely blank lines
     # if the text hasn't scrolled all the way down to the bottom.
     while lines and not lines[-1]:
         lines.pop()
-    
+
     selected = lines[-n_lines:] if n_lines > 0 else lines
-    
+
     # Join and strip any trailing empty newlines
     content = "\n".join(selected).rstrip()
 
@@ -255,9 +266,8 @@ async def tmux_write(target_window: str, input: str, wait_secs: float = 1.0) -> 
     _, _, pos_before = _window_screens[target_window]
 
     # 2. Check for trailing newline (both literal \n and escaped \\n)
-    send_enter = False
+    send_enter = True
     if input.endswith("\n"):
-        send_enter = True
         input = input[:-1]
     elif input.endswith("\\n"):
         send_enter = True
@@ -265,11 +275,11 @@ async def tmux_write(target_window: str, input: str, wait_secs: float = 1.0) -> 
 
     # 3. Check for trailing control sequences (e.g., C-c, M-x, Escape, Tab)
     trailing_key = None
-    ctrl_match = re.search(r'([MC]-.|Enter|Escape|Tab|Space)$', input)
+    ctrl_match = re.search(r"([MC]-.|Enter|Escape|Tab|Space)$", input)
     if ctrl_match:
         trailing_key = ctrl_match.group(1)
         # Strip the control key from the input
-        input = input[:ctrl_match.start()]
+        input = input[: ctrl_match.start()]
 
     # 4. Send the remaining literal string safely
     if input:
@@ -295,7 +305,9 @@ async def tmux_write(target_window: str, input: str, wait_secs: float = 1.0) -> 
     new_bytes = b""
     if os.path.exists(log_file) and pos_after > pos_before:
         try:
-            with open(log_file, 'rb') as f: # Removed encoding="utf-8" since we read 'rb'
+            with open(
+                log_file, "rb"
+            ) as f:  # Removed encoding="utf-8" since we read 'rb'
                 f.seek(pos_before)
                 new_bytes = f.read(pos_after - pos_before)
         except Exception as e:
@@ -306,8 +318,8 @@ async def tmux_write(target_window: str, input: str, wait_secs: float = 1.0) -> 
     if new_bytes:
         width, _ = await _get_pane_size(target_window)
         # Estimate needed lines to prevent truncation
-        estimated_lines = max(100, new_bytes.count(b'\n') + 50)
-        
+        estimated_lines = max(100, new_bytes.count(b"\n") + 50)
+
         temp_screen = pyte.Screen(width, estimated_lines)
         temp_stream = pyte.ByteStream(temp_screen)
         temp_stream.feed(new_bytes)
@@ -316,7 +328,7 @@ async def tmux_write(target_window: str, input: str, wait_secs: float = 1.0) -> 
         cleaned_lines = [line.rstrip() for line in temp_screen.display]
         while cleaned_lines and not cleaned_lines[-1]:
             cleaned_lines.pop()
-            
+
         output = "\n".join(cleaned_lines).strip()
 
     max_chars = 16000
@@ -354,12 +366,14 @@ async def tmux_del(target_window: str) -> str:
 
     return f"Killed window: {target_window}"
 
+
 # async def tmux_del(target_window: str) -> str:
 #     """Kill a window in agent_session and clean up its pipe-pane log."""
 #     if not await _window_exists(target_window):
 #         return f"Error: Window '{target_window}' does not exist"
 
 #     return f"We are in debug mode, so window: {target_window} is not real killed"
+
 
 async def tmux_list() -> str:
     """List all windows in agent_session."""
@@ -374,7 +388,9 @@ async def tmux_list() -> str:
     return "\n".join(windows) if windows else "No active windows found"
 
 
-async def tmux_wait(target_window: str, text: str, timeout: Optional[float] = None) -> str:
+async def tmux_wait(
+    target_window: str, text: str, timeout: Optional[float] = None
+) -> str:
     """Wait for a substring to appear in the window's rendered screen content."""
     if not await _window_exists(target_window):
         return f"Error: Window '{target_window}' does not exist"
@@ -419,9 +435,12 @@ async def tmux_send_signal(target_window: str, signal: str) -> str:
             pid = result.stdout.strip()
             if pid:
                 kill_proc = await asyncio.create_subprocess_exec(
-                    "kill", "-s", signal, pid,
+                    "kill",
+                    "-s",
+                    signal,
+                    pid,
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stderr=asyncio.subprocess.PIPE,
                 )
                 await kill_proc.wait()
                 if kill_proc.returncode == 0:
