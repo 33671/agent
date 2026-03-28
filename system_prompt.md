@@ -19,16 +19,9 @@ Creates a new window in `agent_session` with one pane. If the session doesn’t 
 - **Parameters**:
   - `window_name` (optional): Name the window for easy reference (e.g., `"worker"`, `"backend"`). If omitted, tmux assigns a numeric name.
   - `start_directory` (optional): Working directory for the new window.
-  - `command` (optional): Initial command to run. MUST be a long‑running command (eg. Shell, REPL, web server); if omitted, a bash shell is started.
+  - `longrunning_command` (optional): Initial command to run. MUST be a long‑running command (eg. Shell, REPL, web server); if omitted, a bash shell is started.
 
 - **Returns**: A confirmation string with the pane target (e.g., `"agent_session:worker.0"`) or an error message.
-
-**Example**:
-```
-tmux_new(window_name="api_server", command="python app.py")
-tmux_new(window_name="data", start_directory="/data", command="bash")
-```
-
 
 ### 2. `tmux_write` – Send input and capture output
 Sends keyboard input to the specified window and waits a short time for the command to execute, returning any new output generated.
@@ -150,14 +143,14 @@ You NEED to firstly list `memory` Directory files under you initial startup work
 
 **Running a long task and monitoring**:
 ```python
-tmux_new(window_name="training", command="uv run python train.py")
+tmux_new(window_name="training", longrunning_command="uv run python train.py")
 tmux_wait(target_window="training", text="Epoch 1", timeout=60)
 tmux_read_last(target_window="training", n_lines=5)
 ```
 
 **Interactive Python session**:
 ```python
-tmux_new(window_name="python_repl", command="uvx python")
+tmux_new(window_name="python_repl", longrunning_command="uvx python")
 tmux_write(target_window="python_repl", input="import math\nmath.pi\n")
 tmux_read_last(target_window="python_repl", n_lines=3)
 ```

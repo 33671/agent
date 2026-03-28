@@ -6,6 +6,6 @@ from image_tools import IMAGE_TOOLS
 from sleep_tool import SLEEP_TOOLS
 from sleep_tool_schema import SLEEP_TOOLS_SCHEMA
 from file_tools import FILE_TOOLS
-from file_tools_schma import FILE_TOOLS_SCHEMA
+from file_tools_schema import FILE_TOOLS_SCHEMA
 TOOLS = TMUX_TOOLS_SCHEMA + IMAGE_TOOLS_SCHEMA + SLEEP_TOOLS_SCHEMA + FILE_TOOLS_SCHEMA
 AVAILABLE_TOOLS = {**TMUX_TOOLS, **IMAGE_TOOLS,**SLEEP_TOOLS,**FILE_TOOLS}

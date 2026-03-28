@@ -152,7 +152,7 @@ async def _feed_new_data(window_name: str):
 async def tmux_new(
     window_name: Optional[str] = None,
     start_directory: Optional[str] = None,
-    command: Optional[str] = None,
+    longrunning_command: Optional[str] = None,
 ) -> str:
     """Create a new tmux window in the agent session with one pane."""
     if not await _session_exists():
@@ -164,8 +164,8 @@ async def tmux_new(
         else:
             create_args += ["-c", os.getcwd()]
         create_args += ["-x", "1000", "-y", "1000"]
-        if command:
-            create_args += ["--"] + shlex.split(command)
+        if longrunning_command:
+            create_args += ["--"] + shlex.split(longrunning_command)
         else:
             create_args += ["--"] + ["bash"]
 
@@ -186,8 +186,8 @@ async def tmux_new(
             args += ["-c", start_directory]
         else:
             args += ["-c", os.getcwd()]
-        if command:
-            args += ["--"] + shlex.split(command)
+        if longrunning_command:
+            args += ["--"] + shlex.split(longrunning_command)
         else:
             args += ["--"] + ["bash"]
 

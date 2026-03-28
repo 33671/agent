@@ -20,9 +20,9 @@ TMUX_TOOLS_SCHEMA = [
                         "type": "string",
                         "description": "Working directory for the new window. Defaults to current directory.",
                     },
-                    "command": {
+                    "longrunning_command": {
                         "type": "string",
-                        "description": "Initial command to run in the window (e.g., 'python app.py'). If omitted, a bash shell is started.",
+                        "description": "Initial command to run in the window (e.g., 'python server.py'). If omitted, a bash shell is started.",
                     },
                 },
                 "required": [],
